@@ -47,15 +47,7 @@ jobs:
     container: ${{ matrix.manylinux && format('quay.io/pypa/{0}', matrix.manylinux) || null }}
     
     steps:
-      # Use Node16-based checkout for manylinux2014 containers
-      - uses: actions/checkout@v3
-        if: matrix.manylinux == 'manylinux2014_x86_64'
-        with:
-          submodules: true
-      
-      # Use latest checkout for other environments
       - uses: actions/checkout@v4
-        if: matrix.manylinux != 'manylinux2014_x86_64'
         with:
           submodules: true
       
@@ -74,18 +66,22 @@ jobs:
       
       # Setup Python (not for Linux containers)
       - uses: actions/setup-python@v4
-        if: (runner.os != 'Linux' || !matrix.manylinux) && matrix.manylinux != 'manylinux2014_x86_64'
+        if: runner.os != 'Linux' || !matrix.manylinux
         with:
           python-version: ${{ matrix.python-version }}
       
-      # Use older version for manylinux2014
-      - uses: actions/setup-python@v3
-        if: (runner.os != 'Linux' || !matrix.manylinux) && matrix.manylinux == 'manylinux2014_x86_64'
+      # Setup Poetry for manylinux2014 (use legacy version for GLIBC compatibility)
+      - uses: ./.github/actions/setup-poetry-legacy
+        if: matrix.manylinux == 'manylinux2014_x86_64'
         with:
-          python-version: ${{ matrix.python-version }}
+          key-base: ${{ matrix.os }}-${{ matrix.manylinux || 'native' }}-py${{ matrix.python-version }}
+          use-pipx: ${{ matrix.manylinux && 'true' || 'false' }}
+          use-specific-python-version: ${{ matrix.manylinux && 'true' || 'false' }}
+          specific-python-version: ${{ matrix.python-version }}
       
-      # Setup Poetry
+      # Setup Poetry for other environments
       - uses: ./.github/actions/setup-poetry
+        if: matrix.manylinux != 'manylinux2014_x86_64'
         with:
           key-base: ${{ matrix.os }}-${{ matrix.manylinux || 'native' }}-py${{ matrix.python-version }}
           use-pipx: ${{ matrix.manylinux && 'true' || 'false' }}
@@ -108,15 +104,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref_type == 'tag'
     steps:
-      # Use Node16-based checkout for manylinux2014 containers
-      - uses: actions/checkout@v3
-        if: matrix.manylinux == 'manylinux2014_x86_64'
-        with:
-          submodules: true
-      
-      # Use latest checkout for other environments
       - uses: actions/checkout@v4
-        if: matrix.manylinux != 'manylinux2014_x86_64'
         with:
           submodules: true
       - uses: actions/setup-python@v4
@@ -136,15 +124,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref_type == 'tag'
     steps:
-      # Use Node16-based checkout for manylinux2014 containers
-      - uses: actions/checkout@v3
-        if: matrix.manylinux == 'manylinux2014_x86_64'
-        with:
-          submodules: true
-      
-      # Use latest checkout for other environments
       - uses: actions/checkout@v4
-        if: matrix.manylinux != 'manylinux2014_x86_64'
         with:
           submodules: true
       - uses: actions/setup-python@v4
