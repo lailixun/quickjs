@@ -37,12 +37,25 @@ jobs:
           # Exclude null manylinux for Linux
           - os: ubuntu-latest
             manylinux: null
+          # Temporarily exclude Python 3.13 from manylinux builds due to cffi compatibility
+          - python-version: '3.13'
+            manylinux: 'manylinux2014_x86_64'
+          - python-version: '3.13'
+            manylinux: 'manylinux_2_28_x86_64'
     
     runs-on: ${{ matrix.os }}
     container: ${{ matrix.manylinux && format('quay.io/pypa/{0}', matrix.manylinux) || null }}
     
     steps:
+      # Use Node16-based checkout for manylinux2014 containers
+      - uses: actions/checkout@v3
+        if: matrix.manylinux == 'manylinux2014_x86_64'
+        with:
+          submodules: true
+      
+      # Use latest checkout for other environments
       - uses: actions/checkout@v4
+        if: matrix.manylinux != 'manylinux2014_x86_64'
         with:
           submodules: true
       
@@ -61,7 +74,13 @@ jobs:
       
       # Setup Python (not for Linux containers)
       - uses: actions/setup-python@v4
-        if: runner.os != 'Linux' || !matrix.manylinux
+        if: (runner.os != 'Linux' || !matrix.manylinux) && matrix.manylinux != 'manylinux2014_x86_64'
+        with:
+          python-version: ${{ matrix.python-version }}
+      
+      # Use older version for manylinux2014
+      - uses: actions/setup-python@v3
+        if: (runner.os != 'Linux' || !matrix.manylinux) && matrix.manylinux == 'manylinux2014_x86_64'
         with:
           python-version: ${{ matrix.python-version }}
       
@@ -89,7 +108,15 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref_type == 'tag'
     steps:
+      # Use Node16-based checkout for manylinux2014 containers
+      - uses: actions/checkout@v3
+        if: matrix.manylinux == 'manylinux2014_x86_64'
+        with:
+          submodules: true
+      
+      # Use latest checkout for other environments
       - uses: actions/checkout@v4
+        if: matrix.manylinux != 'manylinux2014_x86_64'
         with:
           submodules: true
       - uses: actions/setup-python@v4
@@ -109,7 +136,15 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref_type == 'tag'
     steps:
+      # Use Node16-based checkout for manylinux2014 containers
+      - uses: actions/checkout@v3
+        if: matrix.manylinux == 'manylinux2014_x86_64'
+        with:
+          submodules: true
+      
+      # Use latest checkout for other environments
       - uses: actions/checkout@v4
+        if: matrix.manylinux != 'manylinux2014_x86_64'
         with:
           submodules: true
       - uses: actions/setup-python@v4
