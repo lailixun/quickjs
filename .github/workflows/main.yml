@@ -88,19 +88,19 @@ jobs:
             bash -c "
               # Install Python if needed
               if ! command -v python${{ matrix.python-version }} &> /dev/null; then
-                yum install -y python${{ matrix.python-version//./-}} python${{ matrix.python-version//./-}}-devel
+                yum install -y python${{ replace(matrix.python-version, '.', '-') }} python${{ replace(matrix.python-version, '.', '-') }}-devel
               fi
-              
+
               # Install pipx and poetry
               python${{ matrix.python-version }} -m pip install pipx
               python${{ matrix.python-version }} -m pipx install poetry
               export PATH=\"\$HOME/.local/bin:\$PATH\"
-              
+
               # Configure poetry
               poetry config --local virtualenvs.in-project true
               poetry env use python${{ matrix.python-version }}
               poetry install
-              
+
               # Run tests
               make test
             "
