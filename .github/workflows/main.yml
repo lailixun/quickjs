@@ -88,7 +88,8 @@ jobs:
             bash -c "
               # Install Python if needed
               if ! command -v python${{ matrix.python-version }} &> /dev/null; then
-                yum install -y python${{ replace(matrix.python-version, '.', '-') }} python${{ replace(matrix.python-version, '.', '-') }}-devel
+                PYTHON_VERSION=\"${{ matrix.python-version }}\"
+                yum install -y python\${PYTHON_VERSION//./-} python\${PYTHON_VERSION//./-}-devel
               fi
 
               # Install pipx and poetry
