@@ -3,106 +3,83 @@ name: Build, test, release
 on:
   push:
     branches:
-      - '*'
+      - "*"
     tags:
-      - '[0-9]+.[0-9]+.[0-9]+'
-      - '[0-9]+.[0-9]+.[0-9]+.dev[0-9]+'
+      - "[0-9]+.[0-9]+.[0-9]+"
+      - "[0-9]+.[0-9]+.[0-9]+.dev[0-9]+"
 
 jobs:
   build:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', '3.13']
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
         os: [ubuntu-latest, macos-13, macos-14, macos-15, windows-2022]
-        manylinux: [null, 'manylinux2014_x86_64', 'manylinux_2_28_x86_64']
+        manylinux: [null, "manylinux_2_28_x86_64", "manylinux_2_28_aarch64"]
         exclude:
           # Exclude manylinux for non-Linux platforms
           - os: macos-13
-            manylinux: 'manylinux2014_x86_64'
+            manylinux: "manylinux_2_28_x86_64"
           - os: macos-13
-            manylinux: 'manylinux_2_28_x86_64'
+            manylinux: "manylinux_2_28_aarch64"
           - os: macos-14
-            manylinux: 'manylinux2014_x86_64'
+            manylinux: "manylinux_2_28_x86_64"
           - os: macos-14
-            manylinux: 'manylinux_2_28_x86_64'
+            manylinux: "manylinux_2_28_aarch64"
           - os: macos-15
-            manylinux: 'manylinux2014_x86_64'
+            manylinux: "manylinux_2_28_x86_64"
           - os: macos-15
-            manylinux: 'manylinux_2_28_x86_64'
+            manylinux: "manylinux_2_28_aarch64"
           - os: windows-2022
-            manylinux: 'manylinux2014_x86_64'
+            manylinux: "manylinux_2_28_x86_64"
           - os: windows-2022
-            manylinux: 'manylinux_2_28_x86_64'
+            manylinux: "manylinux_2_28_aarch64"
           # Exclude null manylinux for Linux
           - os: ubuntu-latest
             manylinux: null
           # Temporarily exclude Python 3.13 from manylinux builds due to cffi compatibility
-          - python-version: '3.13'
-            manylinux: 'manylinux2014_x86_64'
-          - python-version: '3.13'
-            manylinux: 'manylinux_2_28_x86_64'
-    
+          # - python-version: '3.13'
+          #   manylinux: 'manylinux_2_28_x86_64'
+          # - python-version: '3.13'
+          #   manylinux: 'manylinux_2_28_aarch64'
+
     runs-on: ${{ matrix.os }}
     container: ${{ matrix.manylinux && format('quay.io/pypa/{0}', matrix.manylinux) || null }}
-    
+
     steps:
-      # For manylinux2014, we need to use a different approach due to Node.js 20 incompatibility
-      - name: Checkout code (manylinux2014)
-        if: matrix.manylinux == 'manylinux2014_x86_64'
-        run: |
-          # Use git directly to avoid Node.js dependency issues
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          git clone --depth 1 --branch "${GITHUB_REF#refs/heads/}" "https://github.com/$GITHUB_REPOSITORY" .
-          git submodule update --init --recursive
-        shell: bash
-      
-      # Use checkout@v4 for other environments
       - uses: actions/checkout@v4
-        if: matrix.manylinux != 'manylinux2014_x86_64'
         with:
           submodules: true
-      
+
       # Install libffi-devel for manylinux_2_28 and Python 3.13
       - name: Install system dependencies
         if: matrix.manylinux == 'manylinux_2_28_x86_64' && matrix.python-version == '3.13'
         run: |
           yum install -y libffi-devel
         shell: bash
-      
+
       # Windows specific setup
       - uses: ./.github/actions/setup-mingw
         if: runner.os == 'Windows'
         with:
           key-base: ${{ matrix.os }}-py${{ matrix.python-version }}
-      
+
       # Setup Python (not for Linux containers)
       - uses: actions/setup-python@v4
         if: runner.os != 'Linux' || !matrix.manylinux
         with:
           python-version: ${{ matrix.python-version }}
-      
-      # Setup Poetry for manylinux2014 (use legacy version for GLIBC compatibility)
-      - uses: ./.github/actions/setup-poetry-legacy
-        if: matrix.manylinux == 'manylinux2014_x86_64'
-        with:
-          key-base: ${{ matrix.os }}-${{ matrix.manylinux || 'native' }}-py${{ matrix.python-version }}
-          use-pipx: ${{ matrix.manylinux && 'true' || 'false' }}
-          use-specific-python-version: ${{ matrix.manylinux && 'true' || 'false' }}
-          specific-python-version: ${{ matrix.python-version }}
-      
-      # Setup Poetry for other environments
+
       - uses: ./.github/actions/setup-poetry
-        if: matrix.manylinux != 'manylinux2014_x86_64'
         with:
           key-base: ${{ matrix.os }}-${{ matrix.manylinux || 'native' }}-py${{ matrix.python-version }}
           use-pipx: ${{ matrix.manylinux && 'true' || 'false' }}
           use-specific-python-version: ${{ matrix.manylinux && 'true' || 'false' }}
           specific-python-version: ${{ matrix.python-version }}
-      
+
       # Run tests
       - run: make test
-      
+
       # Upload artifacts for tagged builds
       - uses: ./.github/actions/upload-artifacts
         with:
@@ -110,7 +87,7 @@ jobs:
           repair-manylinux: ${{ matrix.manylinux && 'true' || 'false' }}
           manylinux-target: ${{ matrix.manylinux }}
         if: github.ref_type == 'tag'
-  
+
   package-source:
     needs: build
     runs-on: ubuntu-latest
@@ -121,7 +98,7 @@ jobs:
           submodules: true
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.8'
+          python-version: "3.8"
       - uses: ./.github/actions/setup-poetry
         with:
           key-base: source_linux-py3.8
@@ -130,7 +107,7 @@ jobs:
       - uses: ./.github/actions/upload-artifacts
         with:
           make-binary: false
-  
+
   upload-pypi:
     needs: [build, package-source]
     runs-on: ubuntu-latest
@@ -141,7 +118,7 @@ jobs:
           submodules: true
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.8'
+          python-version: "3.8"
       - uses: actions/download-artifact@v3
         with:
           path: dist
