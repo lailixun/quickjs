@@ -47,7 +47,15 @@ jobs:
     container: ${{ matrix.manylinux && format('quay.io/pypa/{0}', matrix.manylinux) || null }}
     
     steps:
+      # Use checkout@v3 for manylinux2014 due to Node.js compatibility
+      - uses: actions/checkout@v3
+        if: matrix.manylinux == 'manylinux2014_x86_64'
+        with:
+          submodules: true
+      
+      # Use checkout@v4 for other environments
       - uses: actions/checkout@v4
+        if: matrix.manylinux != 'manylinux2014_x86_64'
         with:
           submodules: true
       
